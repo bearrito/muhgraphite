@@ -1,0 +1,12 @@
+import pexpect
+child = pexpect.spawn ('python <%=node[:install][:directory]=%>/graphite/webapp/graphite/manage.py syncdb')
+child.expect ('Would you like to create one now? (yes/no):')
+child.sendline ('yes')
+child.expect ("""Username (Leave blank to use 'root'):""")
+child.sendline ('<%=node[:graphite][:django][:dbuser]=%>')
+child.expect ("E-mail address:")
+child.sendline ('<%=node[:graphite][:django][:dbuseremail]=%>')
+child.expect ('Password:')
+child.sendline ('<%=node[:graphite][:django][:dbuserpassword]=%>')
+child.expect ('Password (again):')
+child.sendline ('<%=node[:graphite][:django][:dbuserpassword]=%>')

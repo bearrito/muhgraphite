@@ -1,0 +1,19 @@
+[program:uwsgi]
+command=/usr/local/bin/uwsgi
+  --module 'django.core.handlers.wsgi:WSGIHandler()'
+  --socket 127.0.0.1:3031
+  --chdir <%=node[:install][:directory]=%>/graphite/webapp
+  --processes 1
+  --master
+  --harakiri 120
+  --max-requests 5000
+  --pythonpath "['<%=node[:install][:directory]=%>/graphite/webapp'] + sys.path"
+directory=<%=node[:install][:directory]=%>/graphite/webapp
+environment=DJANGO_SETTINGS_MODULE='graphite.settings'
+user=<%=node[:auth][:graphiteuser]=%>
+group=<%=node[:auth][:graphitegroup]=%>
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/nginx/uwsgi.log
+redirect_stderr=true
+stopsignal=QUIT
