@@ -7,6 +7,11 @@
 # All rights reserved - Do Not Redistribute
 #
 
+service "nginx" do
+  action :nothing
+  supports :status => true, :restart => true, :reload => true
+end
+
 
 user_home = "/home/#{node[:auth][:graphiteuser]}"
 user node[:auth][:graphiteuser] do
@@ -55,9 +60,19 @@ end
 
 
 local_settings = "#{node[:install][:directory]}/graphite/webapp/graphite/local_settings.py"
-template graph_conf do
+template local_settings do
     source "local_settings.py.erb" 
 end
+
+chown_command = "chown -R #{node[:auth][:graphiteuser]}:#{node[:auth][:graphitegroup]} #{node[:install][:directory]}/graphite"
+chmod_command = "chmod -R ug+s #{node[:install][:directory]}/graphite"
+
+
+execute "chown_and_chmod" do
+  command chown_command
+  command chmod_command
+end
+
 
 
 directory "#{node[:install][:directory]}/graphite/storage/log/webapp}" do
@@ -67,6 +82,57 @@ directory "#{node[:install][:directory]}/graphite/storage/log/webapp}" do
   action :create
 end
 
+
+setup_db = "/tmp/setup_db.py"
+template setup_db do
+    source "setup_db.py.erb" 
+end
+
+setup_db_command = "python /tmp/setup_db.py"
+execute setup_db_command do
+   command setup_db_command
+   returns 1
+end
+
+
+node[:graphite][:initscripts].each do |init| 
+    
+    startup = "/etc/init.d/#{init}"
+    template startup do
+      source "#{init}.erb"
+    end
+  
+    chmod_startup = "chmod ugo+x #{startup}"
+    execute "chown the inits" do
+        command chmod_startup
+    end
+
+    execute "set_event" do
+        command "update-rc.d #{init} defaults" 
+        cwd "/etc/init.d/"
+    end
+
+end 
+
+template "/etc/nginx/nginx.conf" do
+   source "nginx.conf.erb"
+   notifies :restart, resources(:service => "nginx")
+
+end
+
+
+node[:graphite][:supervisorscripts].each do |svisor|
+
+    template  "/etc/supervisor/conf.d/#{svisor}" do
+      source "#{svisor}.erb"
+    end
+end
+
+execute "start_services" do
+   command "supervisorctl update && supervisorctl start uwsgi"
+   command "/etc/init.d/carbon start"
+   command "nginx"
+end
 
 
 
